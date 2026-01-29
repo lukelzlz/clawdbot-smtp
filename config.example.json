@@ -1,0 +1,23 @@
+{
+  "accounts": {
+    "primary": {
+      "smtp_host": "smtp.gmail.com",
+      "smtp_port": 587,
+      "imap_host": "imap.gmail.com",
+      "imap_port": 993,
+      "username": "your-email@gmail.com",
+      "password": "your-app-password",
+      "use_ssl": true
+    },
+    "work": {
+      "smtp_host": "smtp.company.com",
+      "smtp_port": 465,
+      "imap_host": "imap.company.com",
+      "imap_port": 993,
+      "username": "you@company.com",
+      "password": "your-password",
+      "use_ssl": true
+    }
+  },
+  "default_account": "primary"
+}
