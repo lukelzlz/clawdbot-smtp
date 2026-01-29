@@ -6,13 +6,33 @@ from jinja2 import Environment, FileSystemLoader
 from typing import Dict, Any
 
 
-# Setup template environment
-TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), 'templates')
-if not os.path.exists(TEMPLATE_DIR):
-    os.makedirs(TEMPLATE_DIR)
+# Setup template environment with multiple search paths
+def _get_template_dirs() -> list:
+    """Get template directories in order of priority."""
+    dirs = []
 
+    # System templates (installed package)
+    system_templates = '/var/lib/clawdbot-smtp/templates'
+    if os.path.exists(system_templates):
+        dirs.append(system_templates)
+
+    # Local templates (development)
+    local_templates = os.path.join(os.path.dirname(__file__), 'templates')
+    if os.path.exists(local_templates):
+        dirs.append(local_templates)
+
+    # Create local templates if none exist
+    if not dirs:
+        os.makedirs(local_templates, exist_ok=True)
+        dirs.append(local_templates)
+
+    return dirs
+
+
+# Setup template environment with fallback
+template_dirs = _get_template_dirs()
 env = Environment(
-    loader=FileSystemLoader(TEMPLATE_DIR),
+    loader=FileSystemLoader(template_dirs),
     autoescape=True
 )
 

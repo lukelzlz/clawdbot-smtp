@@ -14,11 +14,29 @@ class Config:
     """Manage email configuration."""
 
     def __init__(self, config_path: Optional[str] = None):
-        self.config_path = config_path or os.environ.get(
-            'EMAIL_CONFIG',
-            os.path.join(os.path.dirname(__file__), '../config.json')
-        )
+        # Try multiple config locations in order of priority
+        self.config_path = config_path or os.environ.get('EMAIL_CONFIG') or self._find_config_file()
         self.config: Dict[str, Any] = self._load_config()
+
+    def _find_config_file(self) -> Optional[str]:
+        """Find config file in standard locations."""
+        # Check system config first
+        system_config = '/etc/clawdbot-smtp/config.json'
+        if os.path.exists(system_config):
+            return system_config
+
+        # Check local config (development)
+        local_config = os.path.join(os.path.dirname(__file__), '../config.json')
+        if os.path.exists(local_config):
+            return local_config
+
+        # Check user config
+        user_config = os.path.expanduser('~/.config/clawdbot-smtp/config.json')
+        if os.path.exists(user_config):
+            return user_config
+
+        # Return system config as default (will be created by installer)
+        return system_config
 
     def _load_config(self) -> Dict[str, Any]:
         """Load configuration from file or environment variables."""
