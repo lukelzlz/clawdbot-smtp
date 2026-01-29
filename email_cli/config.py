@@ -85,3 +85,21 @@ class Config:
     def get_all_accounts(self) -> Dict[str, Any]:
         """Get all accounts."""
         return self.config.get('accounts', {})
+
+    def get_message_preset(self, preset_name: str) -> Optional[Dict[str, Any]]:
+        """Get a message preset by name."""
+        presets = self.config.get('message_presets', {})
+        return presets.get(preset_name)
+
+    def get_all_presets(self) -> Dict[str, Any]:
+        """Get all message presets."""
+        return self.config.get('message_presets', {})
+
+    def get_recipients(self, group_name: str) -> Optional[List[str]]:
+        """Get recipients group by name."""
+        recipients = self.config.get('recipients', {})
+        return recipients.get(group_name)
+
+    def get_settings(self) -> Dict[str, Any]:
+        """Get global settings."""
+        return self.config.get('settings', {})

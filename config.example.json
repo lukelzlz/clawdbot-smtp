@@ -5,7 +5,7 @@
       "smtp_port": 587,
       "imap_host": "imap.gmail.com",
       "imap_port": 993,
-      "username": "your-email@gmail.com",
+      "username": "your@gmail.com",
       "password": "your-app-password",
       "use_ssl": true
     },
@@ -19,5 +19,49 @@
       "use_ssl": true
     }
   },
-  "default_account": "primary"
+  "default_account": "primary",
+
+  "message_presets": {
+    "welcome": {
+      "subject": "Welcome to {{ company }}!",
+      "body": "Hi {{ name }},\n\nWelcome to {{ company }}! We're excited to have you on board.\n\nBest regards,\nThe {{ company }} Team"
+    },
+    "meeting_reminder": {
+      "subject": "Reminder: {{ meeting_title }}",
+      "body": "Hi {{ name }},\n\nThis is a reminder for your meeting: {{ meeting_title }}\n\nDate: {{ date }}\nTime: {{ time }}\nLocation: {{ location }}\n\nSee you there!"
+    },
+    "task_completed": {
+      "subject": "Task Completed: {{ task_name }}",
+      "body": "Hi {{ manager_name }},\n\nI've completed the task: {{ task_name }}\n\nDescription: {{ description }}\n\nPlease review when you have a chance.\n\nBest,\n{{ my_name }}"
+    },
+    "daily_report": {
+      "subject": "Daily Report - {{ date }}",
+      "body": "## Daily Report - {{ date }}\n\n### Completed Tasks\n- {{ task1 }}\n- {{ task2 }}\n\n### In Progress\n- {{ in_progress }}\n\n### Blocked\n- {{ blocked_item }}\n\n### Notes\n{{ notes }}"
+    },
+    "invoice_sent": {
+      "subject": "Invoice #{{ invoice_number }} for {{ client_name }}",
+      "body": "Dear {{ client_name }},\n\nPlease find attached Invoice #{{ invoice_number }} for your records.\n\nAmount: {{ amount }}\nDue Date: {{ due_date }}\n\nThank you for your business!\n\nBest regards,\n{{ company_name }}"
+    },
+    "follow_up": {
+      "subject": "Following up: {{ context }}",
+      "body": "Hi {{ name }},\n\nJust wanted to follow up on {{ context }}.\n\nHave you had a chance to review? Let me know if you need any additional information.\n\nBest regards,\n{{ my_name }}"
+    }
+  },
+
+  "recipients": {
+    "team": ["alice@company.com", "bob@company.com", "charlie@company.com"],
+    "managers": ["manager1@company.com", "manager2@company.com"],
+    "clients": ["client1@example.com", "client2@example.com"],
+    "support": ["support@company.com"]
+  },
+
+  "settings": {
+    "default_cc": [],
+    "default_bcc": [],
+    "save_sent_copy": true,
+    "notification_channel": {
+      "discord": "",
+      "telegram": ""
+    }
+  }
 }

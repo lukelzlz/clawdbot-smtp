@@ -17,21 +17,58 @@ def cli():
 
 @cli.command()
 @click.option('--account', '-a', help='Account name from config')
-@click.option('--to', '-t', required=True, help='Recipient email address')
-@click.option('--subject', '-s', required=True, help='Email subject')
+@click.option('--to', '-t', help='Recipient email address (or group name)')
+@click.option('--subject', '-s', help='Email subject')
 @click.option('--body', '-b', help='Plain text body')
 @click.option('--html', help='HTML body')
 @click.option('--template', help='Template name (in templates/)')
-@click.option('--context', '-c', help='JSON context for template')
+@click.option('--preset', '-p', help='Use message preset from config')
+@click.option('--context', '-c', help='JSON context for template/preset')
 @click.option('--cc', multiple=True, help='CC recipients (can use multiple times)')
 @click.option('--bcc', multiple=True, help='BCC recipients (can use multiple times)')
 @click.option('--attach', multiple=True, help='Attachments (can use multiple times)')
 @click.option('--json', 'as_json', is_flag=True, help='Output as JSON')
-def send(account, to, subject, body, html, template, context, cc, bcc, attach, as_json):
+def send(account, to, subject, body, html, template, preset, context, cc, bcc, attach, as_json):
     """Send an email."""
     config = Config()
     account_config = config.get_account(account)
     smtp = SMTPClient(account_config)
+    settings = config.get_settings()
+
+    # Load defaults from settings
+    default_cc = settings.get('default_cc', [])
+    default_bcc = settings.get('default_bcc', [])
+
+    # Merge CC/BCC with defaults
+    final_cc = list(set(list(cc) + default_cc))
+    final_bcc = list(set(list(bcc) + default_bcc))
+
+    # Resolve recipient groups
+    if to and '@' not in to:
+        # It's a group name, not an email address
+        recipients = config.get_recipients(to)
+        if recipients:
+            if len(recipients) == 1:
+                to = recipients[0]
+            else:
+                # Multiple recipients, use first as TO, rest as CC
+                to = recipients[0]
+                final_cc.extend(recipients[1:])
+        else:
+            click.echo(f"Warning: Recipient group '{to}' not found", err=True)
+
+    # Handle preset
+    if preset:
+        preset_data = config.get_message_preset(preset)
+        if not preset_data:
+            click.echo(f"Error: Preset '{preset}' not found in config", err=True)
+            return
+
+        # Use preset subject/body if not provided
+        if not subject:
+            subject = preset_data.get('subject', '')
+        if not body and not html:
+            body = preset_data.get('body', '')
 
     # Validate inputs
     if template and body:
@@ -50,13 +87,30 @@ def send(account, to, subject, body, html, template, context, cc, bcc, attach, a
                 subject=subject,
                 template_name=template,
                 context=ctx,
-                cc=list(cc) if cc else None,
-                bcc=list(bcc) if bcc else None,
+                cc=final_cc,
+                bcc=final_bcc,
                 attachments=list(attach) if attach else None
             )
         except Exception as e:
             result = {'success': False, 'error': str(e)}
     else:
+        # Handle context for subject/body (Jinja2 rendering)
+        if context:
+            try:
+                from jinja2 import Template
+                ctx = parse_context(context)
+
+                if subject:
+                    template_obj = Template(subject)
+                    subject = template_obj.render(**ctx)
+
+                if body:
+                    template_obj = Template(body)
+                    body = template_obj.render(**ctx)
+            except Exception as e:
+                click.echo(f"Error rendering context: {e}", err=True)
+                return
+
         # Regular email
         if not body and not html:
             body = ''  # Empty body allowed
@@ -65,8 +119,8 @@ def send(account, to, subject, body, html, template, context, cc, bcc, attach, a
             subject=subject,
             body=body,
             html=html,
-            cc=list(cc) if cc else None,
-            bcc=list(bcc) if bcc else None,
+            cc=final_cc,
+            bcc=final_bcc,
             attachments=list(attach) if attach else None
         )
 
@@ -215,6 +269,109 @@ def create(account, name, as_json):
         click.echo(format_json_output(result))
     else:
         output = format_table_output(result)
+        click.echo(output)
+
+
+@cli.group()
+def presets():
+    """Manage message presets."""
+    pass
+
+
+@presets.command(name='list')
+@click.option('--account', '-a', help='Account name from config')
+@click.option('--json', 'as_json', is_flag=True, help='Output as JSON')
+def list_presets(account, as_json):
+    """List all message presets."""
+    config = Config()
+    presets = config.get_all_presets()
+
+    result = {
+        'presets': list(presets.keys()),
+        'total': len(presets)
+    }
+
+    if as_json:
+        click.echo(format_json_output(result))
+    else:
+        from colorama import Fore, Style
+
+        if result['total'] == 0:
+            click.echo("No presets found in config")
+            return
+
+        output = f"\n{Fore.CYAN}Available Presets:{Style.RESET_ALL}\n\n"
+        for name, preset in presets.items():
+            output += f"  {Fore.GREEN}•{Style.RESET_ALL} {name}\n"
+            output += f"    Subject: {preset.get('subject', 'N/A')}\n\n"
+
+        click.echo(output)
+
+
+@presets.command()
+@click.option('--account', '-a', help='Account name from config')
+@click.option('--name', '-n', required=True, help='Preset name')
+@click.option('--json', 'as_json', is_flag=True, help='Output as JSON')
+def show(account, name, as_json):
+    """Show details of a specific preset."""
+    config = Config()
+    preset = config.get_message_preset(name)
+
+    result = {
+        'name': name,
+        'preset': preset
+    }
+
+    if as_json:
+        click.echo(format_json_output(result))
+    else:
+        from colorama import Fore, Style
+
+        if not preset:
+            click.echo(f"{Fore.RED}Preset '{name}' not found{Style.RESET_ALL}", err=True)
+            return
+
+        output = f"\n{Fore.CYAN}Preset: {name}{Style.RESET_ALL}\n\n"
+        output += f"{Fore.YELLOW}Subject:{Style.RESET_ALL}\n{preset.get('subject', 'N/A')}\n\n"
+        output += f"{Fore.YELLOW}Body:{Style.RESET_ALL}\n{preset.get('body', 'N/A')}\n"
+        click.echo(output)
+
+
+@cli.group()
+def recipients():
+    """Manage recipient groups."""
+    pass
+
+
+@recipients.command(name='list')
+@click.option('--account', '-a', help='Account name from config')
+@click.option('--json', 'as_json', is_flag=True, help='Output as JSON')
+def list_recipients(account, as_json):
+    """List all recipient groups."""
+    config = Config()
+    recipients = config.config.get('recipients', {})
+
+    result = {
+        'groups': list(recipients.keys()),
+        'total': len(recipients)
+    }
+
+    if as_json:
+        click.echo(format_json_output(result))
+    else:
+        from colorama import Fore, Style
+
+        if result['total'] == 0:
+            click.echo("No recipient groups found in config")
+            return
+
+        output = f"\n{Fore.CYAN}Available Groups:{Style.RESET_ALL}\n\n"
+        for name, group in recipients.items():
+            output += f"  {Fore.GREEN}•{Style.RESET_ALL} {name} ({len(group)} recipients)\n"
+            for email in group:
+                output += f"    - {email}\n"
+            output += "\n"
+
         click.echo(output)
 
 
